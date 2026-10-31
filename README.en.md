@@ -15,11 +15,11 @@ No OpenSSL or any other tool is needed. `PfxConvert.exe` is a single file.
 
 ## Download
 
-Get the latest ZIP (`PfxConvert_v1.1.0.zip`) from [Releases](../../releases/latest). It contains the EXE and the manuals (Japanese and English).
+Get the latest ZIP (`PfxConvert_v1.1.1.zip`) from [Releases](../../releases/latest). It contains the EXE and the manuals (Japanese and English).
 The SHA-256 of the ZIP is listed on the release page, so you can verify it:
 
 ```
-certutil -hashfile PfxConvert_v1.1.0.zip SHA256
+certutil -hashfile PfxConvert_v1.1.1.zip SHA256
 ```
 
 ## How to use
@@ -52,6 +52,7 @@ If nothing is found, create a `certificates` folder inside the MT5 `Config` fold
 
 After copying:
 
+- You can keep the converted file name, but do not change its first part (the original name). The MetaQuotes help says certificate files are named `Login_ID_Name.pfx` (account number, short name of the broker, client name). The help does not say whether MT5 uses the file name to match the account, but keep the account number at the start to be safe.
 - Do not leave the **original** (unconverted) PFX in the `certificates` folder; keep it somewhere else. If it stays there, the MT5 log may show `loading of standard SSL certificate from PFX failed`.
 - Restart MT5 and try to log in. If MT5 asks for the certificate password, enter the one you set during conversion.
 - The MetaQuotes help says a certificate password must be at least 5 characters and contain at least two kinds of characters among lower case, upper case and digits. Following this when you set a new password is a safe choice.
@@ -64,6 +65,7 @@ References (MetaQuotes help): [Extended authentication](https://www.metatrader5.
 - It only reads the PFX you choose and writes to the `PFX_converted` (or `PFX変換済み`) output folder. The original file is never modified.
 - It creates no settings or log files.
 - After conversion it re-reads the new file with the new password and checks that the contents match.
+- The converted file keeps the original name. If the original name contains your account number or your name, they also appear in the converted file name and in the log in the window, so take care when you share screenshots.
 
 The EXE is not code-signed, so Windows SmartScreen may warn you the first time. If you prefer not to run an unsigned EXE, read the source and build it yourself.
 

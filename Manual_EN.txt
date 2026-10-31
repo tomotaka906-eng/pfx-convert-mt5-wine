@@ -1,5 +1,5 @@
 ﻿============================================================
-  PFX Converter for MT5 on Wine  (PfxConvert)  v1.1.0
+  PFX Converter for MT5 on Wine  (PfxConvert)  v1.1.1
 ============================================================
 
   日本語の説明書: 説明書.txt (Japanese manual)
@@ -88,6 +88,11 @@
   After copying:
 
     - You can keep the file name as it is (<original name>_3DES-SHA1-certNONE.pfx).
+      Do not change the first part (the original name). The MetaQuotes help says
+      certificate files are named "Login_ID_Name.pfx" (account number, short name
+      of the broker, client name). The help does not say whether MT5 uses the file
+      name to match the account, but keep the account number at the start to be
+      safe.
     - Do not leave the ORIGINAL (unconverted) PFX in the certificates folder; keep it
       somewhere else. If it stays there, the MT5 log may show
       "loading of standard SSL certificate from PFX failed".
@@ -116,6 +121,9 @@
   - The private key in the converted file is still protected by the password.
   - After conversion, the tool re-reads the new file with the new password to
     check it automatically.
+  - The converted file keeps the original name. If the original name contains
+    your account number or your name, they also appear in the converted file name
+    and in the log in the window. Take care when you share screenshots.
 
 
 [ Warning on first launch ]
@@ -182,6 +190,9 @@
 
 [ Changelog ]
 
+  v1.1.1  Manual updated: keep the account number at the start of the file name, and
+          take care with screenshots that show the file name.
+          PfxConvert.exe is unchanged from v1.1.0.
   v1.1.0  The window and its messages are now available in English (chosen from the
           Windows display language; switch with the link at the top right). In the
           English window the output folder is named "PFX_converted".
