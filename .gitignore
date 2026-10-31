@@ -1,0 +1,11 @@
+# 許可リスト方式: ここに書いたファイル以外はコミットしない
+# （証明書や変換済み PFX、EXE、配布用 ZIP などを誤って公開しないため）
+*
+!.gitignore
+!.gitattributes
+!LICENSE
+!README.md
+!PfxConvert.cs
+!build.bat
+!app.ico
+!説明書.txt
