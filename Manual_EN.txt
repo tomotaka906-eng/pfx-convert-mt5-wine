@@ -1,5 +1,5 @@
 ﻿============================================================
-  PFX Converter for MT5 on Wine  (PfxConvert)  v1.0.1
+  PFX Converter for MT5 on Wine  (PfxConvert)  v1.1.0
 ============================================================
 
   日本語の説明書: 説明書.txt (Japanese manual)
@@ -23,7 +23,7 @@
   - Windows 10 / 11
   - No installation. PfxConvert.exe is the only file you need.
     (It uses .NET Framework 4.x, which is built into Windows.)
-  - The window is in Japanese only. See "Window labels" below.
+  - The window is available in English and Japanese (see "Language" below).
 
 
 [ How to use ]
@@ -35,13 +35,14 @@
      - Or click the frame to choose the file.
 
   3. In the password dialog, enter the ORIGINAL password of the certificate and
-     click "変換する" (Convert).
-     - To change the password, tick "新しいパスワードを設定する" (Set a new
-       password) and enter the new password twice.
+     click "Convert".
+     - To change the password, tick "Set a new password" and enter the new
+       password twice.
      - If the password is wrong, the dialog shows an error and lets you retry.
 
-  4. A folder named "PFX変換済み" (= "PFX converted") is created next to the original
-     file, the converted file is saved in it, and the folder opens automatically.
+  4. A folder named "PFX_converted" ("PFX変換済み" when the window is in Japanese) is
+     created next to the original file, the converted file is saved in it, and the
+     folder opens automatically.
        File name: <original name>_3DES-SHA1-certNONE.pfx
 
   5. Put the converted file in the MT5 certificate folder. See the next section.
@@ -49,19 +50,12 @@
      change it).
 
 
-[ Window labels (Japanese -> English) ]
+[ Language ]
 
-  ここに PFX ファイルをドラッグ＆ドロップ  Drag and drop your PFX file here
-  元のパスワード                          Original password
-  新しいパスワードを設定する              Set a new password
-  新しいパスワード                        New password
-  新しいパスワード（確認）                New password (confirm)
-  パスワードを表示                        Show password
-  変換する                                Convert
-  キャンセル                              Cancel
-  出力フォルダを開く                      Open output folder
-  PFX変換済み                             "PFX converted" (output folder name)
-
+  - The window opens in Japanese if Windows is displayed in Japanese, and in English
+    otherwise.
+  - Click the link at the top right ("English" / "日本語") to switch at any time. The
+    choice is not saved, so the next start follows the Windows display language again.
 
 [ Where to put the file in MT5 ]
 
@@ -137,22 +131,21 @@
 
 [ Troubleshooting ]
 
-  Messages you may see (Japanese -> English):
+  Messages you may see:
 
-  パスワードが違います
-      Wrong password. Check the original password (case, half/full width).
-  復号できませんでした。パスワードが違うか、ファイルが壊れています
-      Could not decrypt: wrong password or damaged file.
-  秘密鍵が含まれていません
-      The file has no private key. It is not a login certificate. Check that it
-      is the PFX file you received from your broker.
-  ファイルが空（0 バイト）です
-      The file is empty (0 bytes). The download failed; download it again.
-  PFX（PKCS#12）ファイルではありません
-      This is not a PFX (PKCS#12) file.
-  新しいパスワードと確認用の入力が一致しません
-      The two new-password entries do not match.
-
+  "Wrong password."
+      Check the original password (case, half/full width).
+  "Could not decrypt. The password is wrong or the file is damaged."
+      Same as above, or the file is damaged.
+  "The file contains no private key. ..."
+      It is not a login certificate. Check that it is the PFX file you received
+      from your broker.
+  "The file is empty (0 bytes). The download may have failed."
+      Download the file again.
+  "This is not a PFX (PKCS#12) file."
+      Check that you chose the right file.
+  "The two new-password entries do not match."
+      Type the same new password in both boxes.
   The converted file still does not work in MT5?
       Start MT5 from a terminal to see why it fails:
         cd "<MT5 folder>"
@@ -189,6 +182,10 @@
 
 [ Changelog ]
 
+  v1.1.0  The window and its messages are now available in English (chosen from the
+          Windows display language; switch with the link at the top right). In the
+          English window the output folder is named "PFX_converted".
+          PfxConvert.exe was updated.
   v1.0.1  Manual updated: added where to put the certificate in MT5, fixed the MT5
           step, added this English manual. PfxConvert.exe is unchanged from v1.0.
   v1.0    First release

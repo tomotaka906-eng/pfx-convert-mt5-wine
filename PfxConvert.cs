@@ -9,6 +9,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
@@ -20,11 +21,11 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Windows.Forms;
 
-[assembly: AssemblyTitle("PFX 変換（MT5 / Wine 用）")]
-[assembly: AssemblyDescription("PFX を MT5 (Wine) でログインできる形式に変換します")]
+[assembly: AssemblyTitle("PFX Converter for MT5 / Wine (PFX 変換ツール)")]
+[assembly: AssemblyDescription("Converts a PFX certificate to a format that works in MT5 under Wine / PFX を MT5 (Wine) でログインできる形式に変換します")]
 [assembly: AssemblyProduct("PfxConvert")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace PfxConvert
 {
@@ -57,7 +58,7 @@ namespace PfxConvert
         public Asn1Node Child(int index)
         {
             if (Children == null || index >= Children.Count)
-                throw new PfxFormatException("PFX の構造を読み取れません（必要な要素がありません）。");
+                throw new PfxFormatException(Loc.T("PFX の構造を読み取れません（必要な要素がありません）。", "Cannot read the PFX structure (a required element is missing)."));
             return Children[index];
         }
 
@@ -83,7 +84,7 @@ namespace PfxConvert
 
         public string Oid()
         {
-            if (Tag != 0x06) throw new PfxFormatException("PFX の構造を読み取れません（OID がありません）。");
+            if (Tag != 0x06) throw new PfxFormatException(Loc.T("PFX の構造を読み取れません（OID がありません）。", "Cannot read the PFX structure (an OID is missing)."));
             var sb = new StringBuilder();
             long value = 0;
             bool first = true;
@@ -109,7 +110,7 @@ namespace PfxConvert
         public long Integer()
         {
             if (Tag != 0x02 || ContentLength == 0 || ContentLength > 8)
-                throw new PfxFormatException("PFX の構造を読み取れません（整数の形式が不正です）。");
+                throw new PfxFormatException(Loc.T("PFX の構造を読み取れません（整数の形式が不正です）。", "Cannot read the PFX structure (invalid integer)."));
             long v = (Buffer[ContentStart] & 0x80) != 0 ? -1 : 0;
             for (int i = ContentStart; i < ContentStart + ContentLength; i++) v = (v << 8) | Buffer[i];
             return v;
@@ -190,7 +191,7 @@ namespace PfxConvert
 
         static Exception Broken()
         {
-            return new PfxFormatException("PFX ファイルの形式が正しくありません（壊れているか、PFX ではありません）。");
+            return new PfxFormatException(Loc.T("PFX ファイルの形式が正しくありません（壊れているか、PFX ではありません）。", "Invalid PFX file format (the file is damaged or is not a PFX)."));
         }
     }
 
@@ -319,7 +320,7 @@ namespace PfxConvert
                     case "SHA512": return SHA512.Create();
                 }
             }
-            throw new PfxFormatException("対応していないハッシュ方式です: " + name);
+            throw new PfxFormatException(Loc.T("対応していないハッシュ方式です: ", "Unsupported hash algorithm: ") + name);
         }
 
         public static HMAC CreateHmac(string name, byte[] key)
@@ -331,7 +332,7 @@ namespace PfxConvert
                 case "SHA384": return new HMACSHA384(key);
                 case "SHA512": return new HMACSHA512(key);
             }
-            throw new PfxFormatException("対応していないハッシュ方式です: " + name);
+            throw new PfxFormatException(Loc.T("対応していないハッシュ方式です: ", "Unsupported hash algorithm: ") + name);
         }
 
         // RFC 7292 Appendix B の鍵導出（id: 1=鍵, 2=IV, 3=MAC 鍵）
@@ -416,7 +417,7 @@ namespace PfxConvert
         static void CheckIterations(int iterations)
         {
             if (iterations < 1 || iterations > 10000000)
-                throw new PfxFormatException("反復回数が不正です: " + iterations);
+                throw new PfxFormatException(Loc.T("反復回数が不正です: ", "Invalid iteration count: ") + iterations);
         }
 
         public static byte[] Transform(SymmetricAlgorithm cipher, byte[] key, byte[] iv, byte[] data, bool encrypt)
@@ -455,7 +456,7 @@ namespace PfxConvert
         public bool KeyIsRsa;
         public List<CertEntry> Certs = new List<CertEntry>();
         public bool IsBer;
-        public string MacDescription = "なし";
+        public string MacDescription = Loc.T("なし", "none");
         public List<string> Protection = new List<string>();   // 「証明書: RC2-40（反復 2048 回）」など
     }
 
@@ -480,17 +481,17 @@ namespace PfxConvert
 
         public static PfxContents Read(byte[] pfx, string password, bool verifyMac = true)
         {
-            if (pfx.Length == 0) throw new PfxFormatException("ファイルが空（0 バイト）です。ダウンロードに失敗した可能性があります。");
-            if (pfx[0] != 0x30) throw new PfxFormatException("PFX（PKCS#12）ファイルではありません。");
+            if (pfx.Length == 0) throw new PfxFormatException(Loc.T("ファイルが空（0 バイト）です。ダウンロードに失敗した可能性があります。", "The file is empty (0 bytes). The download may have failed."));
+            if (pfx[0] != 0x30) throw new PfxFormatException(Loc.T("PFX（PKCS#12）ファイルではありません。", "This is not a PFX (PKCS#12) file."));
 
             var result = new PfxContents { IsBer = pfx.Length > 1 && pfx[1] == 0x80 };
             var root = Ber.Parse(pfx);
             long version = root.Child(0).Integer();
-            if (version != 3) throw new PfxFormatException("対応していない PFX のバージョンです: " + version);
+            if (version != 3) throw new PfxFormatException(Loc.T("対応していない PFX のバージョンです: ", "Unsupported PFX version: ") + version);
 
             var authSafeInfo = root.Child(1);
             if (authSafeInfo.Child(0).Oid() != OidData)
-                throw new PfxFormatException("公開鍵で保護された PFX には対応していません。");
+                throw new PfxFormatException(Loc.T("公開鍵で保護された PFX には対応していません。", "PFX files protected with a public key are not supported."));
             byte[] authSafeBytes = authSafeInfo.Child(1).Child(0).Value();
 
             byte[] bmp = Pkcs12Crypto.BmpPassword(password);
@@ -501,7 +502,7 @@ namespace PfxConvert
                 string type = info.Child(0).Oid();
                 if (type == OidData)
                 {
-                    ReadSafeContents(info.Child(1).Child(0).Value(), password, bmp, result, "暗号化なし");
+                    ReadSafeContents(info.Child(1).Child(0).Value(), password, bmp, result, Loc.T("暗号化なし", "not encrypted"));
                 }
                 else if (type == OidEncryptedData)
                 {
@@ -513,12 +514,12 @@ namespace PfxConvert
                 }
                 else
                 {
-                    throw new PfxFormatException("対応していない保護方式の PFX です（" + type + "）。");
+                    throw new PfxFormatException(Loc.T("対応していない保護方式の PFX です（", "Unsupported PFX protection mode (") + type + Loc.T("）。", ")."));
                 }
             }
 
-            if (result.PrivateKey == null) throw new PfxFormatException("秘密鍵が含まれていません。ログインには秘密鍵付きの PFX が必要です。");
-            if (result.Certs.Count == 0) throw new PfxFormatException("証明書が含まれていません。");
+            if (result.PrivateKey == null) throw new PfxFormatException(Loc.T("秘密鍵が含まれていません。ログインには秘密鍵付きの PFX が必要です。", "The file contains no private key. A PFX with a private key is required to log in."));
+            if (result.Certs.Count == 0) throw new PfxFormatException(Loc.T("証明書が含まれていません。", "The file contains no certificate."));
             return result;
         }
 
@@ -527,11 +528,11 @@ namespace PfxConvert
             var digestInfo = macData.Child(0);
             string algOid = digestInfo.Child(0).Child(0).Oid();
             string hashName = HashNameFromOid(algOid);
-            if (hashName == null) throw new PfxFormatException("対応していない MAC 方式です（" + algOid + "）。");
+            if (hashName == null) throw new PfxFormatException(Loc.T("対応していない MAC 方式です（", "Unsupported MAC algorithm (") + algOid + Loc.T("）。", ")."));
             byte[] expected = digestInfo.Child(1).Value();
             byte[] salt = macData.Child(1).Value();
             int iterations = macData.ChildCount > 2 ? (int)macData.Child(2).Integer() : 1;
-            result.MacDescription = hashName + "（反復 " + iterations + " 回）";
+            result.MacDescription = hashName + Loc.T("（反復 ", " (") + iterations + Loc.T(" 回）", " iterations)");
 
             // 空パスワードは作成ツールによって表現が異なるので両方試す
             var candidates = new List<byte[]> { Pkcs12Crypto.BmpPassword(password) };
@@ -544,7 +545,7 @@ namespace PfxConvert
                 using (var hmac = Pkcs12Crypto.CreateHmac(hashName, key))
                     if (hmac.ComputeHash(content).SequenceEqual(expected)) return pw;
             }
-            throw new PfxPasswordException("パスワードが違います。");
+            throw new PfxPasswordException(Loc.T("パスワードが違います。", "Wrong password."));
         }
 
         static string HashNameFromOid(string oid)
@@ -577,12 +578,12 @@ namespace PfxConvert
                 {
                     if (value.Child(0).Oid() != OidX509Cert) continue;
                     result.Certs.Add(new CertEntry { Der = value.Child(1).Child(0).Value(), FriendlyName = friendlyName, LocalKeyId = localKeyId });
-                    AddProtection(result, "証明書: " + protection);
+                    AddProtection(result, Loc.T("証明書: ", "Certificate: ") + protection);
                 }
                 else if (bagId == OidShroudedKeyBag || bagId == OidKeyBag)
                 {
                     if (result.PrivateKey != null) continue;
-                    string description = "暗号化なし";
+                    string description = Loc.T("暗号化なし", "not encrypted");
                     byte[] pkcs8 = bagId == OidShroudedKeyBag
                         ? Decrypt(value.Child(0), value.Child(1).Value(), password, bmp, out description)
                         : Der.Reencode(value);
@@ -591,7 +592,7 @@ namespace PfxConvert
                     result.KeyIsRsa = isRsa;
                     result.KeyFriendlyName = friendlyName;
                     result.KeyLocalId = localKeyId;
-                    AddProtection(result, "秘密鍵: " + description);
+                    AddProtection(result, Loc.T("秘密鍵: ", "Private key: ") + description);
                 }
                 else if (bagId == OidSafeContentsBag)
                 {
@@ -638,7 +639,7 @@ namespace PfxConvert
             {
                 throw DecryptFailed();
             }
-            throw new PfxFormatException("対応していない暗号方式です（" + oid + "）。");
+            throw new PfxFormatException(Loc.T("対応していない暗号方式です（", "Unsupported encryption algorithm (") + oid + Loc.T("）。", ")."));
         }
 
         static byte[] Pkcs12Pbe(Asn1Node algorithm, byte[] data, byte[] bmp, SymmetricAlgorithm cipher, int keyLength, string name, out string description)
@@ -646,7 +647,7 @@ namespace PfxConvert
             var param = algorithm.Child(1);
             byte[] salt = param.Child(0).Value();
             int iterations = (int)param.Child(1).Integer();
-            description = name + "（反復 " + iterations + " 回）";
+            description = name + Loc.T("（反復 ", " (") + iterations + Loc.T(" 回）", " iterations)");
             byte[] key = Pkcs12Crypto.Kdf("SHA1", bmp, salt, iterations, 1, keyLength);
             byte[] iv = Pkcs12Crypto.Kdf("SHA1", bmp, salt, iterations, 2, 8);
             return Pkcs12Crypto.Transform(cipher, key, iv, data, false);
@@ -657,7 +658,7 @@ namespace PfxConvert
             var kdf = param.Child(0);
             var scheme = param.Child(1);
             if (kdf.Child(0).Oid() != "1.2.840.113549.1.5.12")
-                throw new PfxFormatException("対応していない鍵導出方式です（" + kdf.Child(0).Oid() + "）。");
+                throw new PfxFormatException(Loc.T("対応していない鍵導出方式です（", "Unsupported key derivation function (") + kdf.Child(0).Oid() + Loc.T("）。", ")."));
             var kp = kdf.Child(1);
             byte[] salt = kp.Child(0).Value();
             int iterations = (int)kp.Child(1).Integer();
@@ -673,7 +674,7 @@ namespace PfxConvert
                     case "1.2.840.113549.2.9": prf = "SHA256"; break;
                     case "1.2.840.113549.2.10": prf = "SHA384"; break;
                     case "1.2.840.113549.2.11": prf = "SHA512"; break;
-                    default: throw new PfxFormatException("対応していない PRF です（" + prfOid + "）。");
+                    default: throw new PfxFormatException(Loc.T("対応していない PRF です（", "Unsupported PRF (") + prfOid + Loc.T("）。", ")."));
                 }
             }
 
@@ -688,10 +689,10 @@ namespace PfxConvert
                 case "2.16.840.1.101.3.4.1.22": cipher = new AesCryptoServiceProvider(); length = 24; name = "AES-192"; break;
                 case "2.16.840.1.101.3.4.1.42": cipher = new AesCryptoServiceProvider(); length = 32; name = "AES-256"; break;
                 case "1.2.840.113549.3.7": cipher = new TripleDESCryptoServiceProvider(); length = 24; name = "3DES"; break;
-                default: throw new PfxFormatException("対応していない暗号方式です（" + encOid + "）。");
+                default: throw new PfxFormatException(Loc.T("対応していない暗号方式です（", "Unsupported encryption algorithm (") + encOid + Loc.T("）。", ")."));
             }
             if (keyLength > 0) length = keyLength;
-            description = name + "（PBES2・" + prf + "・反復 " + iterations + " 回）";
+            description = name + Loc.T("（PBES2・", " (PBES2, ") + prf + Loc.T("・反復 ", ", ") + iterations + Loc.T(" 回）", " iterations)");
             byte[] key = Pkcs12Crypto.Pbkdf2(prf, Encoding.UTF8.GetBytes(password), salt, iterations, length);
             return Pkcs12Crypto.Transform(cipher, key, iv, data, false);
         }
@@ -715,7 +716,7 @@ namespace PfxConvert
 
         static Exception DecryptFailed()
         {
-            return new PfxPasswordException("復号できませんでした。パスワードが違うか、ファイルが壊れています。");
+            return new PfxPasswordException(Loc.T("復号できませんでした。パスワードが違うか、ファイルが壊れています。", "Could not decrypt. The password is wrong or the file is damaged."));
         }
 
         // ------------------------------------------------------------ 書き出し
@@ -774,7 +775,7 @@ namespace PfxConvert
         public static byte[] Write(PfxContents c, string password)
         {
             int client = FindClientCert(c);
-            if (client < 0) throw new PfxFormatException("秘密鍵に対応する証明書が見つかりません。");
+            if (client < 0) throw new PfxFormatException(Loc.T("秘密鍵に対応する証明書が見つかりません。", "No certificate matching the private key was found."));
             var clientCert = c.Certs[client];
             string friendlyName = c.KeyFriendlyName ?? clientCert.FriendlyName;
             byte[] localKeyId;
@@ -826,8 +827,30 @@ namespace PfxConvert
 
     // ================================================================ 画面
 
+    // 表示言語。OS の表示言語が日本語なら日本語、それ以外は英語。画面のリンクで切り替えられる
+    // （設定ファイルは作らないので、選んだ言語は次回起動時には引き継がない）
+    public static class Loc
+    {
+        public static bool English = !string.Equals(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, "ja", StringComparison.OrdinalIgnoreCase);
+
+        public static string T(string ja, string en)
+        {
+            return English ? en : ja;
+        }
+    }
+
     static class Ui
     {
+        public static Font BaseFont()
+        {
+            return new Font(Loc.English ? "Segoe UI" : "Yu Gothic UI", 9F);
+        }
+
+        public static string AppTitle()
+        {
+            return Loc.T("PFX 変換（MT5 / Wine 用）", "PFX Converter for MT5 / Wine");
+        }
+
         public static Icon AppIcon()
         {
             try
@@ -858,12 +881,12 @@ namespace PfxConvert
 
         public static bool Confirm(IWin32Window owner, string message)
         {
-            return MessageBox.Show(owner, message, "PFX 変換", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes;
+            return MessageBox.Show(owner, message, AppTitle(), MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes;
         }
 
         public static void ShowError(IWin32Window owner, string message)
         {
-            MessageBox.Show(owner, message, "PFX 変換", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(owner, message, AppTitle(), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -882,31 +905,31 @@ namespace PfxConvert
         {
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
-            Text = "パスワードの入力 - PFX 変換";
-            Font = new Font("Yu Gothic UI", 9F);
+            Text = Loc.T("パスワードの入力 - PFX 変換", "Enter password - PFX Converter");
+            Font = Ui.BaseFont();
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = MinimizeBox = false;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(480, 300);
+            ClientSize = new Size(500, 300);
 
             var table = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, Padding = new Padding(12, 10, 12, 8) };
             table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             Controls.Add(table);
 
-            Ui.AddField(table, "ファイル", new Label { Text = Path.GetFileName(inputPath), AutoSize = true, Anchor = AnchorStyles.Left, Font = new Font(Font, FontStyle.Bold) });
+            Ui.AddField(table, Loc.T("ファイル", "File"), new Label { Text = Path.GetFileName(inputPath), AutoSize = true, Anchor = AnchorStyles.Left, Font = new Font(Font, FontStyle.Bold) });
             txtPass = new TextBox { Anchor = AnchorStyles.Left | AnchorStyles.Right, UseSystemPasswordChar = true };
-            Ui.AddField(table, "元のパスワード", txtPass);
-            chkChange = new CheckBox { Text = "新しいパスワードを設定する", AutoSize = true, Anchor = AnchorStyles.Left };
+            Ui.AddField(table, Loc.T("元のパスワード", "Original password"), txtPass);
+            chkChange = new CheckBox { Text = Loc.T("新しいパスワードを設定する", "Set a new password"), AutoSize = true, Anchor = AnchorStyles.Left };
             Ui.AddField(table, "", chkChange);
             txtNew = new TextBox { Anchor = AnchorStyles.Left | AnchorStyles.Right, UseSystemPasswordChar = true, Enabled = false };
-            Ui.AddField(table, "新しいパスワード", txtNew);
+            Ui.AddField(table, Loc.T("新しいパスワード", "New password"), txtNew);
             txtNew2 = new TextBox { Anchor = AnchorStyles.Left | AnchorStyles.Right, UseSystemPasswordChar = true, Enabled = false };
-            Ui.AddField(table, "新しいパスワード（確認）", txtNew2);
-            chkShow = new CheckBox { Text = "パスワードを表示", AutoSize = true, Anchor = AnchorStyles.Left };
+            Ui.AddField(table, Loc.T("新しいパスワード（確認）", "New password (confirm)"), txtNew2);
+            chkShow = new CheckBox { Text = Loc.T("パスワードを表示", "Show passwords"), AutoSize = true, Anchor = AnchorStyles.Left };
             Ui.AddField(table, "", chkShow);
-            Ui.AddField(table, "保存先", new Label
+            Ui.AddField(table, Loc.T("保存先", "Save to"), new Label
             {
                 Text = outputPath,
                 AutoSize = false,
@@ -916,14 +939,14 @@ namespace PfxConvert
                 ForeColor = Color.DimGray
             });
 
-            lblError = new Label { AutoSize = true, MaximumSize = new Size(450, 0), ForeColor = Color.Firebrick, Margin = new Padding(3, 4, 3, 4) };
+            lblError = new Label { AutoSize = true, MaximumSize = new Size(470, 0), ForeColor = Color.Firebrick, Margin = new Padding(3, 4, 3, 4) };
             Ui.AddRow(table, lblError, SizeType.AutoSize, 0);
             table.RowCount++;
             table.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             var buttons = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0) };
-            var btnCancel = new Button { Text = "キャンセル", AutoSize = true, DialogResult = DialogResult.Cancel };
-            var btnOk = new Button { Text = "変換する", AutoSize = true, Padding = new Padding(10, 0, 10, 0) };
+            var btnCancel = new Button { Text = Loc.T("キャンセル", "Cancel"), AutoSize = true, DialogResult = DialogResult.Cancel };
+            var btnOk = new Button { Text = Loc.T("変換する", "Convert"), AutoSize = true, Padding = new Padding(10, 0, 10, 0) };
             btnOk.Font = new Font(Font, FontStyle.Bold);
             buttons.Controls.Add(btnCancel);
             buttons.Controls.Add(btnOk);
@@ -956,16 +979,18 @@ namespace PfxConvert
         {
             if (chkChange.Checked && txtNew.Text != txtNew2.Text)
             {
-                lblError.Text = "新しいパスワードと確認用の入力が一致しません。";
+                lblError.Text = Loc.T("新しいパスワードと確認用の入力が一致しません。", "The two new-password entries do not match.");
                 txtNew2.SelectAll();
                 txtNew2.Focus();
                 return;
             }
             string pw = NewPassword;
             if (pw.Length == 0 &&
-                !Ui.Confirm(this, "保存するパスワードが空です。\r\n空のパスワードは読み込めない原因になりやすいです。続行しますか？")) return;
+                !Ui.Confirm(this, Loc.T("保存するパスワードが空です。\r\n空のパスワードは読み込めない原因になりやすいです。続行しますか？",
+                                        "The password to save is empty.\r\nAn empty password is a common reason a file cannot be loaded. Continue?"))) return;
             if (pw.Any(ch => ch < 0x20 || ch > 0x7E) &&
-                !Ui.Confirm(this, "パスワードに半角英数字・記号以外の文字が含まれています。\r\nWine はパスワードを ASCII として扱うため、MT5 で読み込めない可能性が高いです。続行しますか？")) return;
+                !Ui.Confirm(this, Loc.T("パスワードに半角英数字・記号以外の文字が含まれています。\r\nWine はパスワードを ASCII として扱うため、MT5 で読み込めない可能性が高いです。続行しますか？",
+                                        "The password contains characters other than half-width letters, digits and symbols.\r\nWine treats passwords as ASCII, so MT5 will probably fail to load the file. Continue?"))) return;
             lblError.Text = "";
             DialogResult = DialogResult.OK;
         }
@@ -974,24 +999,27 @@ namespace PfxConvert
     public sealed class MainForm : Form
     {
         const string OutputSuffix = "_3DES-SHA1-certNONE";
-        const string OutputFolderName = "PFX変換済み";
+        const string OutputFolderJa = "PFX変換済み";
+        const string OutputFolderEn = "PFX_converted";
 
         readonly Panel dropPanel;
-        readonly Label dropLabel, lblStatus;
+        readonly Label lblIntro, dropLabel, lblStatus;
+        readonly LinkLabel lnkLang;
         readonly TextBox txtLog;
         readonly Button btnOpen;
         readonly string[] startupFiles;
         string lastOutputPath;
+        bool statusIsDefault = true;
+
+        static string OutputFolderName { get { return Loc.T(OutputFolderJa, OutputFolderEn); } }
 
         public MainForm(string[] files)
         {
             startupFiles = files ?? new string[0];
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
-            Text = "PFX 変換（MT5 / Wine 用）";
-            Font = new Font("Yu Gothic UI", 9F);
-            ClientSize = new Size(560, 460);
-            MinimumSize = new Size(440, 380);
+            ClientSize = new Size(580, 460);
+            MinimumSize = new Size(460, 380);
             StartPosition = FormStartPosition.CenterScreen;
             Icon = Ui.AppIcon();
 
@@ -999,24 +1027,17 @@ namespace PfxConvert
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             Controls.Add(root);
 
-            Ui.AddRow(root, new Label
-            {
-                AutoSize = true,
-                Margin = new Padding(3, 0, 3, 8),
-                Text = "PFX ファイルをドロップするとパスワードの入力画面が開き、MT5（Wine）で\r\n" +
-                       "ログインできる形式（秘密鍵 3DES・証明書は暗号化なし・MAC SHA1）に変換します。\r\n" +
-                       "変換したファイルは元のファイルと同じ場所の「" + OutputFolderName + "」フォルダに保存されます。"
-            }, SizeType.AutoSize, 0);
+            var header = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 2, Margin = new Padding(0) };
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            lblIntro = new Label { AutoSize = true, Margin = new Padding(3, 0, 3, 8) };
+            lnkLang = new LinkLabel { AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Right, Margin = new Padding(3, 0, 3, 8) };
+            header.Controls.Add(lblIntro, 0, 0);
+            header.Controls.Add(lnkLang, 1, 0);
+            Ui.AddRow(root, header, SizeType.AutoSize, 0);
 
             dropPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.AliceBlue, Cursor = Cursors.Hand, Padding = new Padding(3) };
-            dropLabel = new Label
-            {
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font(Font.FontFamily, 12F),
-                ForeColor = Color.SteelBlue,
-                Text = "ここに PFX ファイルをドラッグ＆ドロップ\r\n（クリックしてファイルを選ぶこともできます）"
-            };
+            dropLabel = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, ForeColor = Color.SteelBlue };
             dropPanel.Controls.Add(dropLabel);
             dropPanel.Paint += delegate(object s, PaintEventArgs e)
             {
@@ -1033,13 +1054,18 @@ namespace PfxConvert
             var bottom = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 2, Margin = new Padding(0) };
             bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             bottom.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            lblStatus = new Label { AutoSize = true, Anchor = AnchorStyles.Left, Text = "PFX ファイルをドロップしてください。" };
-            btnOpen = new Button { Text = "出力フォルダを開く", AutoSize = true, Enabled = false };
+            lblStatus = new Label { AutoSize = true, Anchor = AnchorStyles.Left };
+            btnOpen = new Button { AutoSize = true, Enabled = false };
             bottom.Controls.Add(lblStatus, 0, 0);
             bottom.Controls.Add(btnOpen, 1, 0);
             Ui.AddRow(root, bottom, SizeType.AutoSize, 0);
 
             btnOpen.Click += delegate { OpenOutputFolder(); };
+            lnkLang.LinkClicked += delegate
+            {
+                Loc.English = !Loc.English;
+                ApplyLanguage();
+            };
             dropPanel.Click += delegate { BrowseInput(); };
             dropLabel.Click += delegate { BrowseInput(); };
             foreach (var c in new Control[] { this, dropPanel, dropLabel, txtLog })
@@ -1050,8 +1076,37 @@ namespace PfxConvert
                 c.DragDrop += OnDragDrop;
             }
 
+            ApplyLanguage();
+
             // EXE のアイコンにファイルをドロップして起動した場合
             Shown += delegate { if (startupFiles.Length > 0) BeginInvoke(new MethodInvoker(delegate { HandleFiles(startupFiles); })); };
+        }
+
+        // 画面の文字をすべて現在の言語にする（ログの過去の行は書き換えない）
+        void ApplyLanguage()
+        {
+            Font = Ui.BaseFont();
+            Text = Ui.AppTitle();
+            lblIntro.Text = Loc.T(
+                "PFX ファイルをドロップするとパスワードの入力画面が開き、MT5（Wine）で\r\n" +
+                "ログインできる形式（秘密鍵 3DES・証明書は暗号化なし・MAC SHA1）に変換します。\r\n" +
+                "変換したファイルは元のファイルと同じ場所の「" + OutputFolderJa + "」フォルダに保存されます。",
+                "Drop a PFX file to open the password dialog and convert it to a format that\r\n" +
+                "works in MT5 under Wine (private key 3DES, certificate not encrypted, MAC SHA1).\r\n" +
+                "The result is saved in the \"" + OutputFolderEn + "\" folder next to the original file.");
+            dropLabel.Font = new Font(Font.FontFamily, 12F);
+            dropLabel.Text = Loc.T(
+                "ここに PFX ファイルをドラッグ＆ドロップ\r\n（クリックしてファイルを選ぶこともできます）",
+                "Drag and drop a PFX file here\r\n(or click to choose a file)");
+            btnOpen.Text = Loc.T("出力フォルダを開く", "Open output folder");
+            lnkLang.Text = Loc.English ? "日本語" : "English";
+            if (statusIsDefault) lblStatus.Text = Loc.T("PFX ファイルをドロップしてください。", "Drop a PFX file.");
+        }
+
+        void SetStatus(string message)
+        {
+            statusIsDefault = false;
+            lblStatus.Text = message;
         }
 
         void OnDragEnter(object sender, DragEventArgs e)
@@ -1075,7 +1130,7 @@ namespace PfxConvert
         {
             using (var dlg = new OpenFileDialog())
             {
-                dlg.Filter = "PFX / P12 (*.pfx;*.p12)|*.pfx;*.p12|すべてのファイル (*.*)|*.*";
+                dlg.Filter = Loc.T("PFX / P12 (*.pfx;*.p12)|*.pfx;*.p12|すべてのファイル (*.*)|*.*", "PFX / P12 (*.pfx;*.p12)|*.pfx;*.p12|All files (*.*)|*.*");
                 dlg.Multiselect = true;
                 dlg.InitialDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
                 if (dlg.ShowDialog(this) == DialogResult.OK) HandleFiles(dlg.FileNames);
@@ -1088,7 +1143,7 @@ namespace PfxConvert
             {
                 if (Directory.Exists(file))
                 {
-                    Log("× フォルダは変換できません: " + file);
+                    Log(Loc.T("× フォルダは変換できません: ", "x Cannot convert a folder: ") + file);
                     continue;
                 }
                 if (!ProcessFile(file)) break;
@@ -1106,11 +1161,11 @@ namespace PfxConvert
                 {
                     if (dialog.ShowDialog(this) != DialogResult.OK)
                     {
-                        lblStatus.Text = "キャンセルしました。";
+                        SetStatus(Loc.T("キャンセルしました。", "Cancelled."));
                         return false;
                     }
                     if (File.Exists(outputPath) &&
-                        !Ui.Confirm(this, "次のファイルは既にあります。上書きしますか？\r\n\r\n" + outputPath)) return false;
+                        !Ui.Confirm(this, Loc.T("次のファイルは既にあります。上書きしますか？\r\n\r\n", "This file already exists. Overwrite it?\r\n\r\n") + outputPath)) return false;
 
                     try
                     {
@@ -1121,12 +1176,12 @@ namespace PfxConvert
                     catch (PfxPasswordException ex)
                     {
                         Log("  × " + ex.Message);
-                        dialog.SetError(ex.Message + "もう一度入力してください。");
+                        dialog.SetError(ex.Message + Loc.T("もう一度入力してください。", " Please enter it again."));
                     }
                     catch (Exception ex)
                     {
                         Log("  × " + ex.Message);
-                        lblStatus.Text = "変換できませんでした。";
+                        SetStatus(Loc.T("変換できませんでした。", "Conversion failed."));
                         Ui.ShowError(this, ex.Message);
                         return false;
                     }
@@ -1138,8 +1193,10 @@ namespace PfxConvert
         {
             string dir = Path.GetDirectoryName(Path.GetFullPath(inputPath));
             // 変換済みフォルダ内のファイルを再変換するときは、同じフォルダに出す
-            if (!string.Equals(Path.GetFileName(dir), OutputFolderName, StringComparison.OrdinalIgnoreCase))
-                dir = Path.Combine(dir, OutputFolderName);
+            string folder = Path.GetFileName(dir);
+            bool insideOutputFolder = string.Equals(folder, OutputFolderJa, StringComparison.OrdinalIgnoreCase) ||
+                                      string.Equals(folder, OutputFolderEn, StringComparison.OrdinalIgnoreCase);
+            if (!insideOutputFolder) dir = Path.Combine(dir, OutputFolderName);
             return Path.Combine(dir, BaseName(inputPath) + OutputSuffix + ".pfx");
         }
 
@@ -1157,18 +1214,22 @@ namespace PfxConvert
                 byte[] output = Pkcs12.Write(contents, newPassword);
                 var check = Pkcs12.Read(output, newPassword);
                 if (!check.PrivateKey.SequenceEqual(contents.PrivateKey) || check.Certs.Count != contents.Certs.Count)
-                    throw new PfxFormatException("変換結果の検証に失敗しました。");
+                    throw new PfxFormatException(Loc.T("変換結果の検証に失敗しました。", "Verification of the converted file failed."));
                 Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
                 File.WriteAllBytes(outputPath, output);
                 lastOutputPath = outputPath;
                 btnOpen.Enabled = true;
 
-                Log("  変換後: 秘密鍵 3DES / 証明書 暗号化なし / MAC SHA1（反復 " + Pkcs12.Iterations + " 回）");
-                Log("  ○ " + (passwordChanged ? "新しい" : "元と同じ") + "パスワードで読み直して確認しました");
+                Log(Loc.T("  変換後: 秘密鍵 3DES / 証明書 暗号化なし / MAC SHA1（反復 " + Pkcs12.Iterations + " 回）",
+                          "  Converted: private key 3DES / certificate not encrypted / MAC SHA1 (" + Pkcs12.Iterations + " iterations)"));
+                Log(Loc.T("  ○ " + (passwordChanged ? "新しい" : "元と同じ") + "パスワードで読み直して確認しました",
+                          "  OK: re-read the new file with " + (passwordChanged ? "the new" : "the original") + " password and verified it"));
                 string windowsError = CheckWithWindows(output, newPassword);
-                Log(windowsError == null ? "  ○ Windows の証明書機能でも読み込めました" : "  △ Windows での読み込みテストに失敗: " + windowsError);
-                Log("  保存先: " + outputPath);
-                lblStatus.Text = "完了: " + Path.GetFileName(outputPath);
+                Log(windowsError == null
+                    ? Loc.T("  ○ Windows の証明書機能でも読み込めました", "  OK: Windows can also load the file")
+                    : Loc.T("  △ Windows での読み込みテストに失敗: ", "  Warning: Windows could not load the file in a test: ") + windowsError);
+                Log(Loc.T("  保存先: ", "  Saved to: ") + outputPath);
+                SetStatus(Loc.T("完了: ", "Done: ") + Path.GetFileName(outputPath));
             }
             finally
             {
@@ -1178,7 +1239,8 @@ namespace PfxConvert
 
         void LogInput(PfxContents c)
         {
-            Log("  元の形式: " + (c.IsBer ? "BER（Java などで作成）" : "DER") + " / MAC " + c.MacDescription);
+            Log(Loc.T("  元の形式: ", "  Source format: ") +
+                (c.IsBer ? Loc.T("BER（Java などで作成）", "BER (for example made by Java)") : "DER") + " / MAC " + c.MacDescription);
             foreach (var p in c.Protection) Log("  " + p);
             int client = Pkcs12.FindClientCert(c);
             if (client >= 0)
@@ -1187,12 +1249,13 @@ namespace PfxConvert
                 {
                     using (var cert = new X509Certificate2(c.Certs[client].Der))
                     {
-                        Log("  有効期限: " + cert.NotAfter.ToString("yyyy/MM/dd HH:mm") + (cert.NotAfter < DateTime.Now ? "  ※期限切れです" : ""));
+                        Log(Loc.T("  有効期限: ", "  Expires: ") + cert.NotAfter.ToString("yyyy/MM/dd HH:mm") +
+                            (cert.NotAfter < DateTime.Now ? Loc.T("  ※期限切れです", "  ** EXPIRED **") : ""));
                     }
                 }
                 catch (CryptographicException) { }
             }
-            if (!c.KeyIsRsa) Log("  ※ RSA 以外の鍵です。Wine では読み込めない可能性があります。");
+            if (!c.KeyIsRsa) Log(Loc.T("  ※ RSA 以外の鍵です。Wine では読み込めない可能性があります。", "  Note: this is not an RSA key. It may not load in Wine."));
         }
 
         static string CheckWithWindows(byte[] pfx, string password)
@@ -1202,7 +1265,7 @@ namespace PfxConvert
             {
                 // EphemeralKeySet: 鍵を Windows の鍵ストアに保存せずに読み込む
                 cert = new X509Certificate2(pfx, password, (X509KeyStorageFlags)32);
-                return cert.HasPrivateKey ? null : "秘密鍵が読み込まれませんでした";
+                return cert.HasPrivateKey ? null : Loc.T("秘密鍵が読み込まれませんでした", "the private key was not loaded");
             }
             catch (Exception ex)
             {

@@ -11,23 +11,23 @@ PfxConvert is a small Windows app that converts a PFX file into **a format that 
 
 No OpenSSL or any other tool is needed. `PfxConvert.exe` is a single file.
 
-> **Note:** the app window is in Japanese only. A label-by-label translation is in [Manual_EN.txt](Manual_EN.txt).
+> The app window is available in English and Japanese. The language is chosen from the Windows display language, and you can switch it with the link at the top right.
 
 ## Download
 
-Get the latest ZIP (`PfxConvert_v1.0.1.zip`) from [Releases](../../releases/latest). It contains the EXE and the manuals (Japanese and English).
+Get the latest ZIP (`PfxConvert_v1.1.0.zip`) from [Releases](../../releases/latest). It contains the EXE and the manuals (Japanese and English).
 The SHA-256 of the ZIP is listed on the release page, so you can verify it:
 
 ```
-certutil -hashfile PfxConvert_v1.0.1.zip SHA256
+certutil -hashfile PfxConvert_v1.1.0.zip SHA256
 ```
 
 ## How to use
 
 1. Start `PfxConvert.exe`.
 2. Drag and drop your PFX file onto the dotted frame (dropping it onto the EXE icon, or clicking the frame to choose the file, also works).
-3. In the password dialog, enter the original password and click **変換する** (Convert). To change the password, tick **新しいパスワードを設定する** (Set a new password).
-4. A folder named `PFX変換済み` ("PFX converted") is created next to the original file, `<original name>_3DES-SHA1-certNONE.pfx` is saved in it, and the folder opens.
+3. In the password dialog, enter the original password and click **Convert**. To change the password, tick **Set a new password**.
+4. A folder named `PFX_converted` (`PFX変換済み` in the Japanese window) is created next to the original file, `<original name>_3DES-SHA1-certNONE.pfx` is saved in it, and the folder opens.
 5. Put the converted file into the MT5 certificate folder (next section).
 
 ## Where to put the file in MT5
@@ -61,7 +61,7 @@ References (MetaQuotes help): [Extended authentication](https://www.metatrader5.
 ## Safety
 
 - The app makes no network connections (the source uses no networking APIs).
-- It only reads the PFX you choose and writes to the `PFX変換済み` output folder. The original file is never modified.
+- It only reads the PFX you choose and writes to the `PFX_converted` (or `PFX変換済み`) output folder. The original file is never modified.
 - It creates no settings or log files.
 - After conversion it re-reads the new file with the new password and checks that the contents match.
 
@@ -90,7 +90,6 @@ This builds `PfxConvert.exe` from `PfxConvert.cs` (C# 5 syntax). The icon is `ap
 - Other brokers and other Wine versions have not been tested.
 - The exact reason the original file failed to log in has not been identified. What is confirmed is that the format with an unencrypted certificate part worked.
 - Use only ASCII characters in a new password (Wine treats passwords as ASCII).
-- The app window is Japanese only; see [Manual_EN.txt](Manual_EN.txt) for translations of the labels and messages.
 
 ## License
 
