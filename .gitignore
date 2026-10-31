@@ -5,6 +5,8 @@
 !.gitattributes
 !LICENSE
 !README.md
+!README.en.md
+!Manual_EN.txt
 !PfxConvert.cs
 !build.bat
 !app.ico

@@ -1,6 +1,8 @@
 ﻿============================================================
-  PFX 変換ツール（MT5 / Wine 用）  PfxConvert  v1.0
+  PFX 変換ツール（MT5 / Wine 用）  PfxConvert  v1.0.1
 ============================================================
+
+  English manual: Manual_EN.txt（同梱の英語版の説明書）
 
 ■ このツールについて
 
@@ -11,6 +13,8 @@
     変換後の形式: 秘密鍵 3DES / 証明書は暗号化なし / MAC SHA1（反復 2048 回）
 
   動作確認: 外為ファイネスト（FXTF）の MT5 / Ubuntu / Wine 10.0
+  （この形式のファイルでログインできることを確認しています。他のブローカーや
+    Wine のバージョンでは確認していません。）
 
 
 ■ 動作環境
@@ -38,9 +42,51 @@
      変換したファイルが保存されて、フォルダが自動で開きます。
        ファイル名: 元の名前_3DES-SHA1-certNONE.pfx
 
-  5. 変換したファイルを Linux 側にコピーし、MT5 のログイン画面で
-     証明書として指定します。パスワードは手順 3 のもの
-     （変更しなかった場合は元のパスワード）です。
+  5. 変換したファイルを MT5 の証明書フォルダに置きます。
+     置き場所は次の「MT5 での証明書の置き場所」を見てください。
+     パスワードは手順 3 のもの（変更しなかった場合は元のパスワード）です。
+
+
+■ MT5 での証明書の置き場所
+
+  MetaQuotes の公式ヘルプでは、証明書ファイル（*.pfx）は、MT5 のデータフォルダの
+  中の Config\certificates フォルダに置くことになっています。
+  変換したファイルを、そのフォルダにコピーしてください。
+
+  【Windows 版 MT5 の場合】
+
+    MT5 のメニュー「ファイル」→「データフォルダを開く」で開いたフォルダの中の
+      Config\certificates
+    通常のインストールでは、次のような場所です。
+      C:\Users\<ユーザー名>\AppData\Roaming\MetaQuotes\Terminal\<英数字の長い名前>\Config\certificates
+    ※ MT5 を /portable オプションで起動している場合は、MT5 のインストール
+      フォルダの中の Config\certificates です。
+
+  【Linux（Wine）版 MT5 の場合】
+
+    MetaQuotes 公式のインストールスクリプト（mt5linux.sh）を使うと、Wine の領域は
+    ホームディレクトリの .mt5 フォルダ（~/.mt5）の下に作られます。公式ヘルプでは、
+    MT5 の既定の場所は次のとおりです。
+      ~/.mt5/drive_c/Program Files/MetaTrader 5
+    ただし、Windows 版と同じように、Wine のユーザーフォルダの下がデータフォルダに
+    なる場合もあります。
+      ~/.mt5/drive_c/users/<ユーザー名>/AppData/Roaming/MetaQuotes/Terminal/<英数字の長い名前>
+    場所が分からないときは、端末で次のコマンドを実行すると、証明書フォルダを
+    探せます。
+      find ~/.mt5 ~/.wine -type d -ipath '*/config/certificates' 2>/dev/null
+    表示されたフォルダに、変換したファイルをコピーします。複数見つかったときは、
+    実際に使っている MT5 のものを選んでください。
+    何も表示されないときは、MT5 の Config フォルダの中に「certificates」という名前の
+    フォルダを作って、そこにコピーしてください。
+
+  【置いたあと】
+
+    ・ファイル名は変換後のまま（元の名前_3DES-SHA1-certNONE.pfx）で構いません。
+    ・変換前の元のファイルは、certificates フォルダに残さず、別の場所に保管して
+      ください。元のファイルが入ったままだと、MT5 のログに
+      「loading of standard SSL certificate from PFX failed」と出ることがあります。
+    ・MT5 を一度終了して起動し直し、ログインを試してください。証明書の
+      パスワードを求められたら、手順 3 で設定したパスワードを入力します。
 
 
 ■ パスワードについて
@@ -48,6 +94,9 @@
   ・新しいパスワードは「半角英数字と記号」だけにしてください。
     Wine は全角文字などを含むパスワードを正しく扱えません。
   ・空のパスワードは読み込めない原因になるので避けてください。
+  ・MetaQuotes の公式ヘルプでは、証明書のパスワードは 5 文字以上で、英小文字・
+    大文字・数字のうち 2 種類以上を含むこととされています。新しいパスワードを
+    設定するときは、これに合わせると無難です。
   ・変換前のファイルも変換後のファイルも、パスワードを知っている人なら
     ログインに使えます。ファイルとパスワードは他人に渡さないでください。
 
@@ -98,6 +147,17 @@
   ・暗号: RC2-40 / RC2-128 / 3DES / AES-128・192・256（PBES2）
   ・MAC: SHA1 / SHA256 / SHA384 / SHA512 / なし
   ・Java などで作られた BER 形式のファイルにも対応しています。
+  ・鍵は RSA のみです。
+
+
+■ 参考（MetaQuotes 公式ヘルプ）
+
+  ・拡張認証（証明書の保存先）
+      https://www.metatrader5.com/ja/terminal/help/start_advanced/extended_authorization
+  ・ファイルとフォルダ（データフォルダ、Config フォルダ）
+      https://www.metatrader5.com/ja/terminal/help/start_advanced/structure
+  ・Linux への MT5 のインストール
+      https://www.metatrader5.com/en/terminal/help/start_advanced/install_linux
 
 
 ■ 免責事項
@@ -108,4 +168,6 @@
 
 ■ 更新履歴
 
-  v1.0  初版
+  v1.0.1  説明書を更新（MT5 での証明書の置き場所を追加、MT5 側の手順の誤りを
+          修正、英語版を追加）。PfxConvert.exe は v1.0 から変更ありません。
+  v1.0    初版
